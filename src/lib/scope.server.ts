@@ -12,6 +12,44 @@ type DB = SupabaseClient<any, "public", any>;
 
 const CACHE_HOURS = 24;
 
+/** Marks any queued/running job as stopped so the run is not resumed. */
+export async function stopSearchJobs(supabase: DB, userId: string, searchId: string) {
+  const { error } = await supabase
+    .from("search_jobs")
+    .update({
+      status: "failed",
+      error_message: "Stopped by user",
+      finished_at: new Date().toISOString(),
+    })
+    .eq("search_id", searchId)
+    .eq("user_id", userId)
+    .in("status", ["queued", "running"]);
+  if (error) throw new Error(error.message);
+  return { stopped: true };
+}
+
+/** Deletes a stored search and every scraped row that belongs to it. */
+export async function deleteSearchRecord(supabase: DB, userId: string, searchId: string) {
+  const { data: profiles } = await supabase
+    .from("platform_profiles")
+    .select("id")
+    .eq("search_id", searchId)
+    .eq("user_id", userId);
+  const profileIds = (profiles ?? []).map((row) => row.id as string);
+
+  if (profileIds.length) {
+    await supabase.from("posts").delete().in("platform_profile_id", profileIds);
+    await supabase.from("metric_snapshots").delete().in("platform_profile_id", profileIds);
+    await supabase.from("profile_matches").delete().in("platform_profile_id_a", profileIds);
+    await supabase.from("profile_matches").delete().in("platform_profile_id_b", profileIds);
+    await supabase.from("platform_profiles").delete().in("id", profileIds);
+  }
+  await supabase.from("search_jobs").delete().eq("search_id", searchId).eq("user_id", userId);
+  const { error } = await supabase.from("searches").delete().eq("id", searchId).eq("user_id", userId);
+  if (error) throw new Error(error.message);
+  return { deleted: true };
+}
+
 export type SearchFilters = {
   query: string;
   platforms: Platform[];
@@ -141,8 +179,11 @@ export async function executePlatformJob(
 
     const profiles = normalizeItems(platform, items)
       .map((profile) => ({ profile, metrics: computeMetrics(profile, query) }))
-      .filter(({ profile }) => (profile.follower_count ?? 0) >= minFollowers)
-      .sort((a, b) => (b.profile.follower_count ?? 0) - (a.profile.follower_count ?? 0))
+      // Many platform datasets (Instagram/Reddit/Facebook posts) carry no follower
+      // count at all — dropping those would leave only YouTube visible, so unknown
+      // audience sizes are kept and simply ranked last.
+      .filter(({ profile }) => profile.follower_count === null || profile.follower_count >= minFollowers)
+      .sort((a, b) => (b.profile.follower_count ?? -1) - (a.profile.follower_count ?? -1))
       .slice(0, maxResults);
 
     if (profiles.length === 0) {

@@ -17,7 +17,7 @@ export function AppShell({
 }: {
   children: ReactNode;
   sidebar?: ReactNode;
-  email?: string | null;
+  email?: string | null | undefined;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();

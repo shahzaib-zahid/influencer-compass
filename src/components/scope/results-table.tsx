@@ -4,6 +4,7 @@ import { BadgeCheck, ChevronDown, ChevronRight, ExternalLink } from "lucide-reac
 import { supabase } from "@/integrations/supabase/client";
 import { PLATFORM_META, formatCount, formatRate, timeAgo, type Platform } from "@/lib/platforms";
 import { cn } from "@/lib/utils";
+import { PlatformTag } from "./platform-tag";
 
 export type ProfileRow = {
   id: string;
@@ -18,6 +19,7 @@ export type ProfileRow = {
   engagement_rate: number | null;
   posting_frequency: number | null;
   relevance_score: number | null;
+  niche_query: string | null;
   last_scraped_at: string;
 };
 
@@ -35,13 +37,16 @@ export function ResultsTable({
   rows,
   sortKey,
   onSort,
+  showPlatform = false,
 }: {
   platform: Platform;
   rows: ProfileRow[];
   sortKey: SortKey;
   onSort: (key: SortKey) => void;
+  showPlatform?: boolean;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
+  const colSpan = showPlatform ? 11 : 10;
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
@@ -49,6 +54,7 @@ export function ResultsTable({
         <thead>
           <tr className="border-b border-border bg-surface-2">
             <th className="w-8" />
+            {showPlatform && <th className="px-3 py-2 text-left label-xs">Platform</th>}
             <th className="px-3 py-2 text-left label-xs">Creator</th>
             {COLUMNS.map((column) => (
               <th key={column.key} className="px-3 py-2 text-right">
@@ -62,6 +68,7 @@ export function ResultsTable({
               </th>
             ))}
             <th className="px-3 py-2 text-right label-xs">{PLATFORM_META[platform].contentLabel}</th>
+            <th className="px-3 py-2 text-left label-xs">Niche / keywords</th>
             <th className="px-3 py-2 text-left label-xs">Bio</th>
             <th className="px-3 py-2 text-right label-xs">Scraped</th>
           </tr>
@@ -81,6 +88,11 @@ export function ResultsTable({
                     <ChevronRight className="size-3.5" />
                   )}
                 </td>
+                {showPlatform && (
+                  <td className="px-3 py-2">
+                    <PlatformTag platform={row.platform} />
+                  </td>
+                )}
                 <td className="max-w-[220px] px-3 py-2">
                   <div className="flex items-center gap-1.5">
                     <a
@@ -108,6 +120,9 @@ export function ResultsTable({
                 <td className="tabular px-3 py-2 text-right text-muted-foreground">
                   {formatCount(row.post_count)}
                 </td>
+                <td className="max-w-[160px] truncate px-3 py-2 font-mono text-xs text-accent">
+                  {row.niche_query ?? "—"}
+                </td>
                 <td className="max-w-[260px] truncate px-3 py-2 text-xs text-muted-foreground">
                   {row.bio ?? "—"}
                 </td>
@@ -117,7 +132,7 @@ export function ResultsTable({
               </tr>
               {expanded === row.id && (
                 <tr key={`${row.id}-posts`} className="border-b border-border bg-background/40">
-                  <td colSpan={9} className="p-3">
+                  <td colSpan={colSpan} className="p-3">
                     <TopPosts profileId={row.id} />
                   </td>
                 </tr>

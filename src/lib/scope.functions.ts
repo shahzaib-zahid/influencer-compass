@@ -30,3 +30,44 @@ export const runPlatformJob = createServerFn({ method: "POST" })
     const { executePlatformJob } = await import("./scope.server");
     return executePlatformJob(context.supabase, context.userId, data.searchId, data.platform);
   });
+
+const searchIdInput = (data: unknown) => z.object({ searchId: z.string().uuid() }).parse(data);
+
+export const stopSearch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(searchIdInput)
+  .handler(async ({ data, context }) => {
+    const { stopSearchJobs } = await import("./scope.server");
+    return stopSearchJobs(context.supabase, context.userId, data.searchId);
+  });
+
+export const deleteSearch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(searchIdInput)
+  .handler(async ({ data, context }) => {
+    const { deleteSearchRecord } = await import("./scope.server");
+    return deleteSearchRecord(context.supabase, context.userId, data.searchId);
+  });
+
+export const buildMatches = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(searchIdInput)
+  .handler(async ({ data, context }) => {
+    const { buildMatchesForSearch } = await import("./match.server");
+    return buildMatchesForSearch(context.supabase, context.userId, data.searchId);
+  });
+
+export const decideMatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ matchId: z.string().uuid(), confirmed: z.boolean() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("profile_matches")
+      .update({ confirmed_by_user: data.confirmed })
+      .eq("id", data.matchId)
+      .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

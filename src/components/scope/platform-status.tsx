@@ -26,7 +26,7 @@ export function PlatformStatusStrip({
   onSelect,
 }: {
   jobs: JobRow[];
-  activePlatform: Platform | null;
+  activePlatform: Platform | "all" | null;
   onSelect: (platform: Platform) => void;
 }) {
   return (

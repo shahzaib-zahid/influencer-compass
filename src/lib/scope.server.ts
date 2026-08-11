@@ -141,8 +141,11 @@ export async function executePlatformJob(
 
     const profiles = normalizeItems(platform, items)
       .map((profile) => ({ profile, metrics: computeMetrics(profile, query) }))
-      .filter(({ profile }) => (profile.follower_count ?? 0) >= minFollowers)
-      .sort((a, b) => (b.profile.follower_count ?? 0) - (a.profile.follower_count ?? 0))
+      // Many platform datasets (Instagram/Reddit/Facebook posts) carry no follower
+      // count at all — dropping those would leave only YouTube visible, so unknown
+      // audience sizes are kept and simply ranked last.
+      .filter(({ profile }) => profile.follower_count === null || profile.follower_count >= minFollowers)
+      .sort((a, b) => (b.profile.follower_count ?? -1) - (a.profile.follower_count ?? -1))
       .slice(0, maxResults);
 
     if (profiles.length === 0) {

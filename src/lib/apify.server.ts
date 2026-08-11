@@ -237,7 +237,7 @@ export function normalizeItems(platform: Platform, items: Json[]): NormalizedPro
 
     bucket.display_name =
       bucket.display_name ??
-      str(pick(item, ["channelName", "fullName", "displayName", "pageName", "title"])) ??
+      str(pick(item, ["channelName", "ownerFullName", "fullName", "displayName", "pageName", "title"])) ??
       str(pick(author, ["nickName", "name", "fullName", "displayName"])) ??
       username;
 
@@ -249,21 +249,26 @@ export function normalizeItems(platform: Platform, items: Json[]): NormalizedPro
 
     bucket.avatar_url =
       bucket.avatar_url ??
-      str(pick(item, ["channelAvatarUrl", "profilePicUrl", "avatar"])) ??
-      str(pick(author, ["avatar", "profilePicUrl", "profile_image_url_https"]));
+      str(pick(item, ["channelAvatarUrl", "profilePicUrl", "avatar", "userIcon", "profilePicture"])) ??
+      str(pick(author, ["avatar", "profilePicUrl", "profilePicture", "profile_image_url_https"]));
 
     const bio =
       str(pick(item, ["channelDescription", "biography", "description", "bio"])) ??
       str(pick(author, ["signature", "description", "biography"]));
     if (bio && (!bucket.bio || bio.length > bucket.bio.length)) bucket.bio = bio;
 
-    if (pick(item, ["isChannelVerified", "verified", "isVerified"]) === true || author["verified"] === true) {
+    if (
+      pick(item, ["isChannelVerified", "verified", "isVerified"]) === true ||
+      author["verified"] === true ||
+      author["isVerified"] === true ||
+      author["isBlueVerified"] === true
+    ) {
       bucket.verified = true;
     }
 
     bucket.region =
       bucket.region ?? str(pick(item, ["location", "country", "channelLocation"])) ?? str(pick(author, ["region"]));
-    bucket.language = bucket.language ?? str(pick(item, ["language", "lang"]));
+    bucket.language = bucket.language ?? str(pick(item, ["language", "lang"])) ?? str(pick(author, ["lang"]));
 
     addPost(bucket, {
       post_url: str(pick(item, ["url", "postUrl", "webVideoUrl", "twitterUrl", "link"])),
